@@ -26,9 +26,7 @@ class SQLCompiler(BaseSQLCompiler):
             extra_select, order_by, group_by = self.pre_sql_setup()
             for_update_part = None
             # Is a LIMIT/OFFSET clause needed?
-            with_limit_offset = with_limits and (
-                self.query.high_mark is not None or self.query.low_mark
-            )
+            with_limit_offset = with_limits and (self.query.high_mark is not None or self.query.low_mark)
             combinator = self.query.combinator
             features = self.connection.features
             if combinator:
@@ -185,14 +183,11 @@ class SQLCompiler(BaseSQLCompiler):
                     result.append("HAVING %s" % having)
                     params.extend(h_params)
 
-            if self.query.explain_info:
-                result.insert(
-                    0,
-                    self.connection.ops.explain_query_prefix(
-                        self.query.explain_info.format,
-                        **self.query.explain_info.options,
-                    ),
-                )
+            if self.query.explain_query:
+                result.insert(0, self.connection.ops.explain_query_prefix(
+                    self.query.explain_format,
+                    **self.query.explain_options
+                ))
 
             if order_by:
                 ordering = []
