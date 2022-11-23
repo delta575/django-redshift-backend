@@ -26,13 +26,13 @@ class SQLCompiler(BaseSQLCompiler):
             extra_select, order_by, group_by = self.pre_sql_setup()
             for_update_part = None
             # Is a LIMIT/OFFSET clause needed?
-            with_limit_offset = with_limits and (self.query.high_mark is not None or self.query.low_mark)
+            with_limit_offset = with_limits and (
+                self.query.high_mark is not None or self.query.low_mark
+            )
             combinator = self.query.combinator
             features = self.connection.features
             if combinator:
-                if not getattr(
-                    features, "supports_select_{}".format(combinator)
-                ):
+                if not getattr(features, "supports_select_{}".format(combinator)):
                     raise NotSupportedError(
                         "{} is not supported on this database backend.".format(
                             combinator
@@ -48,9 +48,7 @@ class SQLCompiler(BaseSQLCompiler):
                 from_, f_params = self.get_from_clause()
                 try:
                     where, w_params = (
-                        self.compile(self.where)
-                        if self.where is not None
-                        else ("", [])
+                        self.compile(self.where) if self.where is not None else ("", [])
                     )
                 except EmptyResultSet:
                     if self.elide_empty:
@@ -58,18 +56,13 @@ class SQLCompiler(BaseSQLCompiler):
                     # Use a predicate that's always False.
                     where, w_params = "0 = 1", []
                 having, h_params = (
-                    self.compile(self.having)
-                    if self.having is not None
-                    else ("", [])
+                    self.compile(self.having) if self.having is not None else ("", [])
                 )
                 result = ["SELECT"]
                 params = []
 
                 if self.query.distinct:
-                    (
-                        distinct_result,
-                        distinct_params,
-                    ) = self.connection.ops.distinct_sql(
+                    distinct_result, distinct_params = self.connection.ops.distinct_sql(
                         distinct_fields,
                         distinct_params,
                         order_by,
@@ -101,10 +94,7 @@ class SQLCompiler(BaseSQLCompiler):
                     result += [self.connection.features.bare_select_suffix]
                 params.extend(f_params)
 
-                if (
-                    self.query.select_for_update
-                    and features.has_select_for_update
-                ):
+                if self.query.select_for_update and features.has_select_for_update:
                     if (
                         self.connection.get_autocommit()
                         # Don't raise an exception when database doesn't
@@ -134,10 +124,7 @@ class SQLCompiler(BaseSQLCompiler):
                         raise NotSupportedError(
                             "NOWAIT is not supported on this database backend."
                         )
-                    elif (
-                        skip_locked
-                        and not features.has_select_for_update_skip_locked
-                    ):
+                    elif skip_locked and not features.has_select_for_update_skip_locked:
                         raise NotSupportedError(
                             "SKIP LOCKED is not supported on this database backend."
                         )
@@ -173,9 +160,7 @@ class SQLCompiler(BaseSQLCompiler):
                         raise NotImplementedError(
                             "annotate() + distinct(fields) is not implemented."
                         )
-                    order_by = (
-                        order_by or self.connection.ops.force_no_ordering()
-                    )
+                    order_by = order_by or self.connection.ops.force_no_ordering()
                     result.append("GROUP BY %s" % ", ".join(grouping))
                     if self._meta_ordering:
                         order_by = None
@@ -183,11 +168,14 @@ class SQLCompiler(BaseSQLCompiler):
                     result.append("HAVING %s" % having)
                     params.extend(h_params)
 
-            if self.query.explain_query:
-                result.insert(0, self.connection.ops.explain_query_prefix(
-                    self.query.explain_format,
-                    **self.query.explain_options
-                ))
+            if self.query.explain_info:
+                result.insert(
+                    0,
+                    self.connection.ops.explain_query_prefix(
+                        self.query.explain_info.format,
+                        **self.query.explain_info.options,
+                    ),
+                )
 
             if order_by:
                 ordering = []
@@ -223,9 +211,7 @@ class SQLCompiler(BaseSQLCompiler):
                 # to exclude extraneous selects.
                 sub_selects = []
                 sub_params = []
-                for index, (select, _, alias) in enumerate(
-                    self.select, start=1
-                ):
+                for index, (select, _, alias) in enumerate(self.select, start=1):
                     if not alias and with_col_aliases:
                         alias = "col%d" % index
                     if alias:
@@ -269,12 +255,13 @@ class SQLAggregateCompiler(SQLCompiler):
             sql.append(ann_sql)
             params.extend(ann_params)
         self.col_count = len(self.query.annotation_select)
-        sql = ', '.join(sql)
+        sql = ", ".join(sql)
         params = tuple(params)
 
         inner_query_sql, inner_query_params = self.query.inner_query.get_compiler(
-            self.using
+            self.using,
+            elide_empty=self.elide_empty,
         ).as_sql(with_col_aliases=True)
-        sql = 'SELECT %s FROM (%s) subquery' % (sql, inner_query_sql)
+        sql = "SELECT %s FROM (%s) subquery" % (sql, inner_query_sql)
         params = params + inner_query_params
         return sql, params
